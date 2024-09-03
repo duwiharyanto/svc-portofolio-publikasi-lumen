@@ -1,0 +1,115 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-name
+  labels:
+    svc: project-name
+    tier: backend
+  namespace: namespaces
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      svc: project-name
+      tier: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  revisionHistoryLimit: 5
+  template:
+    metadata:
+      labels:
+        svc: project-name
+        tier: backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-uii-key
+      containers:
+        - name: project-name
+          image: images
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 10m
+              memory: 1Gi
+            limits:
+              memory: 1Gi
+          env:
+            - name: APP_DEBUG
+              value: "true"
+            - name: APP_ENV
+              value: "local"
+            - name: DB_HOST
+              value: "dbdev.bsi.io"
+            - name: DB_PORT
+              value: "6033"
+            - name: DB_USERNAME
+              value: "dev"
+            - name: DB_PASSWORD
+              value: "bismillah"
+            - name: DB_DATABASE
+              value: "hcm_portofolio"
+            - name: REMUNERASI_DATA_API_URL
+              value: "svc-service-remuneration-lumen.finance-dev.svc.cluster.local"
+            - name: PORTOFOLIO_TAGGING_API_URL
+              value: "svc-portofolio-publikasi-tagging-lumen.namespaces.svc.cluster.local"
+            - name: PORTOFOLIO_REMUNERASI_DATA_API_URL
+              value: "svc-portofolio-publikasi-remunerasi-lumen.namespaces.svc.cluster.local"
+            - name: AWS_ACCESS_KEY_ID
+              value: "lmZPXbUgOtkgHa7yiTO6"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "uwW22P4SkVTdTsIS429eI58xe0GoarShtLH0Xrqm"
+            - name: AWS_ENDPOINT
+              value: "https://s3-dev.uii.ac.id"
+            - name: AWS_ENDPOINT_UPLOAD
+              value: "https://s3-dev.uii.ac.id"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_VERSION
+              value: "latest"
+            - name: WORKER_PROCESSES
+              value: "auto"
+            - name: WORKER_CONNECTIONS
+              value: "1024"
+            - name: PM_MAX_CHILDREN
+              value: "50"
+            - name: MAX_EXECUTION_TIME
+              value: "500"
+          ports:
+            - name: http-api
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-name
+  labels:
+    svc: project-name
+    tier: backend
+  namespace: namespaces
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: getambassador.io/v3alpha1
+      kind:  Mapping
+      metadata:
+        name:  project-name-mapping
+      spec:
+        prefix: /v1/portofolio-publikasi
+        rewrite: /public/api/v1
+        service: project-name.namespaces
+        timeout_ms: 60000
+        hostname: '*'
+spec:
+  selector:
+    svc: project-name
+    tier: backend
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: http-api
+      protocol: TCP

@@ -1,0 +1,143 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-name
+  labels:
+    svc: project-name
+    tier: backend
+  namespace: namespaces
+spec:
+  selector:
+    matchLabels:
+      svc: project-name
+      tier: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  revisionHistoryLimit: 5
+  template:
+    metadata:
+      labels:
+        svc: project-name
+        tier: backend
+    spec:
+      imagePullSecrets:
+        - name: harbor-uii-key
+      containers:
+        - name: project-name
+          image: images
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 250m
+              memory: 556Mi
+            limits:
+              # cpu: 500m
+              memory: 556Mi
+          env:
+            - name: APP_DEBUG
+              value: "true"
+            - name : APP_ENV
+              value: "local"
+            - name: DB_PORT
+              value: "6033"
+            - name: DB_USERNAME
+              value: "sholichin"
+            - name: DB_PASSWORD
+              value: "bismillahstaging123"
+            - name: REMUNERASI_DATA_API_URL
+              value: "svc-service-remuneration-lumen.finance-stag.svc.cluster.local"
+            - name: PORTOFOLIO_REMUNERASI_DATA_API_URL
+              value: "svc-portofolio-publikasi-remunerasi-lumen.namespaces.svc.cluster.local"
+            - name: DB_HOST
+              value: "dbstaging.bsi.io"
+            - name: DB_MAX_CONNECTION_LIFETIME
+              value: "300s"
+            - name: MYSQL_CONN_TIMEOUT
+              value: "4s"
+            - name: AWS_ENDPOINT
+              value: "https://s3-staging.uii.ac.id"
+            - name: AWS_ENDPOINT_UPLOAD
+              value: "https://s3-staging.uii.ac.id"
+            - name: AWS_ACCESS_KEY_ID
+              value: "2m8mYMxUUTwTwCqPgy2F"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "6yxf3LPgy4kMNLpKAACe9PzzeS5mJU8cKWA5PwVu"
+            - name: AWS_SSL
+              value: "false"
+            - name: AWS_BUCKETNAME
+              value: "portofolio"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_VERSION
+              value: "latest"
+            - name: WORKER_PROCESSES
+              value: "auto"
+            - name: WORKER_CONNECTIONS
+              value: "1024"
+            - name: PM_MAX_CHILDREN
+              value: "40"
+            - name: MAX_EXECUTION_TIME
+              value: "150"
+            - name: PHP_MEMORY_LIMIT
+              value: "512M"
+          ports:
+            - name: http-api
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-name
+  labels:
+    svc: project-name
+    tier: backend
+  namespace: namespaces
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: getambassador.io/v3alpha1
+      kind:  Mapping
+      metadata:
+        name:  project-name-mapping
+      spec:
+        prefix: /v1/portofolio-publikasi
+        rewrite: /public/api/v1
+        service: project-name.namespaces
+        timeout_ms: 300000
+        hostname: '*'
+spec:
+  selector:
+    svc: project-name
+    tier: backend
+  ports:
+    - name: http-api
+      port: 80
+      targetPort: http-api
+      protocol: TCP
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: project-name
+  labels:
+    svc: project-name
+    tier: backend
+  namespace: namespaces
+spec:
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 75
+        type: Utilization
+    type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1beta2
+    kind: Deployment
+    name: project-name

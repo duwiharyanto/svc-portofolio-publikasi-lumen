@@ -1,0 +1,11 @@
+#/vendor
+/config/database.php
+/.idea
+Homestead.json
+Homestead.yaml
+.env
+.phpunit.result.cache
+/nbproject
+Docker-compose.yml
+NOTE.md
+ENDPOINT-DOCS.pdf
